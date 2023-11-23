@@ -40,7 +40,7 @@ class PortRange(click.ParamType):
 @click.command()
 @click.argument("target", type=str)
 @click.option("--interface", "-i", type=str, required=True, help='Interface for binding the socket')
-@click.option("--nap-duration", "-n", type=int, default=20, help='Nap duration time (in milliseconds)')
+@click.option("--nap-duration", "-n", type=int, default=30, help='Nap duration time (in milliseconds)')
 @click.option("--max-retries", "-R", type=int, default=5, help='Max number of retries before giving up on inspecting a port')
 @optgroup.group("Port(s)/Port range(s)", cls=RequiredAnyOptionGroup)
 @optgroup.option(

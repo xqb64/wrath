@@ -17,6 +17,7 @@ from wrath.net import create_send_sock
 from wrath.net import create_recv_sock
 from wrath.net import unpack
 from wrath.net import Flags
+from wrath.net import TCP_SRC, IP_HDR_LEN, TCP_HDR_LEN
 
 if t.TYPE_CHECKING:
     from wrath.cli import Port, Range
@@ -28,16 +29,12 @@ async def receiver(
     event: trio.Event,
     ports: list[Port],
     ranges: list[Range],
-    streams: tuple[tractor.MsgStream],
-    interface: str,
-    target: str,
     max_retries: int,
-    workers: int = cpu_count(),
 ) -> t.AsyncGenerator[
     dict[int, dict[str, t.Union[int, bool]]], None
 ]:
-    recv_sock = create_recv_sock(target)
-    await recv_sock.bind((interface, 0x0800))
+    recv_sock = create_recv_sock()
+    await recv_sock.bind(('0.0.0.0', TCP_SRC))
 
     event.set()
 
@@ -57,7 +54,7 @@ async def receiver(
 
     while True:
         with trio.move_on_after(0.3) as cancel_scope:
-            response = await recv_sock.recv(1024 * 16)
+            response = await recv_sock.recv(1024)
         if cancel_scope.cancelled_caught:
             not_inspected = [
                 k for k, v in status.items()
@@ -67,12 +64,23 @@ async def receiver(
             if len(not_inspected) == 0:
                 break
 
-            for port in not_inspected:
-                status[port]['sent'] += 1
+            await trio.sleep(0.1)
 
-            yield not_inspected
+            if not recv_sock.is_readable():
+                for port in not_inspected:
+                    status[port]['sent'] += 1
+
+                yield not_inspected
+
+                while not recv_sock.is_readable():
+                    await trio.sleep(0.01)
+            else:
+                continue
         else:
             src, flags = unpack(response)
+
+            if status[src]['status'] != PortStatus.NOT_INSPECTED:
+                continue
 
             match flags:
                 case Flags.SYNACK:
@@ -93,14 +101,13 @@ async def receiver(
     print(f"retried_more_than_once ports: {retried_more_than_once}")
 
 
-async def inspect(semaphore: trio.Semaphore, interface: str, target: str, port: int, nap_duration: int) -> None:
-    async with semaphore:
-        send_sock = create_send_sock()
-        ipv4_datagram = build_ipv4_datagram(interface, target)
-        tcp_segment = build_tcp_segment(interface, target, port)
-        await send_sock.sendto(ipv4_datagram + tcp_segment, (target, port))
-        send_sock.close()
-        await trio.sleep(nap_duration / 1000)
+async def inspect(interface: str, target: str, port: int, nap_duration: int) -> None:
+    send_sock = create_send_sock()
+    ipv4_datagram = build_ipv4_datagram(interface, target)
+    tcp_segment = build_tcp_segment(interface, target, port)
+    await send_sock.sendto(ipv4_datagram + tcp_segment, (target, port))
+    send_sock.close()
+    await trio.sleep(nap_duration / 1000)
 
 
 @tractor.context
@@ -111,12 +118,13 @@ async def batchworker(
     nap_duration: int,
 ) -> None:
     await ctx.started()
-    semaphore = trio.Semaphore(256)
+    limiter = trio.CapacityLimiter(256)
     async with ctx.open_stream() as stream:
         async with trio.open_nursery() as n:
             async for batch in stream:
                 for port in batch:
-                    n.start_soon(inspect, semaphore, interface, target, port, nap_duration)
+                    async with limiter:
+                        n.start_soon(inspect, interface, target, port, nap_duration)
 
 
 async def main(
@@ -141,7 +149,7 @@ async def main(
             for p in portals.values()
         ]) as contexts,
         gather_contexts([ctx[0].open_stream() for ctx in contexts]) as streams,
-        aclosing(receiver(event, ports, ranges, streams, interface, target, max_retries)) as areceiver,
+        aclosing(receiver(event, ports, ranges, max_retries)) as areceiver,
     ):
         async for update in areceiver:
             await event.wait()

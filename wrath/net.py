@@ -6,9 +6,6 @@ from fcntl import ioctl
 
 from trio import socket
 
-from wrath.bpf import create_filter
-
-
 IP_VERSION = 4
 IP_IHL = 5
 IP_DSCP = 0
@@ -20,7 +17,6 @@ IP_FRAGMENT_OFFSET = 0
 IP_TTL = 255
 IP_PROTOCOL = 6  # TCP
 IP_CHECKSUM = 0
-
 
 TCP_SRC = 6969  # source port
 TCP_ACK_NO = 0
@@ -75,13 +71,11 @@ def create_send_sock() -> socket.SocketType:
     return send_sock
 
 
-def create_recv_sock(target: str) -> socket.SocketType:
+def create_recv_sock() -> socket.SocketType:
     """
     Creates a raw AF_PACKET receiving socket and attaches an eBPF filter to it.
     """
-    recv_sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, 0x0800)
-    fprog = create_filter(target)
-    recv_sock.setsockopt(socket.SOL_SOCKET, 26, fprog)
+    recv_sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
     return recv_sock
 
 
@@ -205,9 +199,9 @@ def unpack(data: bytes) -> tuple[int, int]:
     the source port and flags of the TCP segment contained in it.
     """
     buf = ctypes.create_string_buffer(
-        data[ETH_HDR_LEN : ETH_HDR_LEN + IP_HDR_LEN + TCP_HDR_LEN],
-        IP_HDR_LEN + TCP_HDR_LEN
+        data[IP_HDR_LEN : IP_HDR_LEN + TCP_HDR_LEN],
+        TCP_HDR_LEN
     )
-    unpacked = struct.unpack("!BBHHHBBH4s4sHHIIBBHHH", buf)  # type: ignore
-    src, flags = unpacked[10], unpacked[15]
+    unpacked = struct.unpack("!HHIIBBHHH", buf)  # type: ignore
+    src, flags = unpacked[0], unpacked[5]
     return src, flags
