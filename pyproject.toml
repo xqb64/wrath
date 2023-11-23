@@ -1,0 +1,48 @@
+[tool.poetry]
+name = "wrath"
+version = "0.1.0"
+description = "A screaming-fast TCP SYN reconnaissance tool"
+authors = ["xqb64 <x@nuked.one>"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+trio = "^0.23.1"
+click = "^8.0.3"
+click-option-group = "^0.5.3"
+tractor = { git = "https://github.com/xqb64/tractor", rev = "fix-forkserver" }
+more-itertools = "^8.10.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+black = "^21.9b0"
+mypy = "^0.910"
+trio-typing = "^0.9.0"
+pylint = "^2.11.1"
+
+[tool.mypy]
+plugins = ["trio_typing.plugin"]
+strict = true
+
+[[tool.mypy.overrides]]
+module = "click_option_group"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tractor"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tractor.trionics"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "wrath.cli"
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = "wrath.core"
+disallow_untyped_decorators = false
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
