@@ -9,18 +9,16 @@ python = "^3.12"
 trio = "^0.23.1"
 click = "^8.0.3"
 click-option-group = "^0.5.3"
-tractor = { git = "https://github.com/xqb64/tractor", rev = "fix-forkserver" }
+tractor = { git = "https://github.com/goodboy/tractor", rev = "master" }
 more-itertools = "^8.10.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 black = "^21.9b0"
-mypy = "^0.910"
-trio-typing = "^0.9.0"
-pylint = "^2.11.1"
+mypy = { git = "https://github.com/python/mypy", rev = "master" }
+ruff = "^0.1.6"
 
 [tool.mypy]
-plugins = ["trio_typing.plugin"]
 strict = true
 
 [[tool.mypy.overrides]]

@@ -41,9 +41,11 @@ ETH_HDR_LEN = 14
 IP_HDR_LEN = 20
 TCP_HDR_LEN = 20
 
+
 class Flags:
     SYNACK = 18
     RSTACK = 20
+
 
 @functools.cache
 def get_iface_ip(interface: str) -> str:
@@ -104,7 +106,7 @@ def build_ipv4_datagram(interface: str, target: str) -> bytes:
 
     struct.pack_into(
         "!BBHHHBBH4s4s",
-        buf,  # type: ignore
+        buf,
         0,
         (IP_VERSION << 4) | IP_IHL,
         IP_DSCP | IP_ECN,
@@ -118,7 +120,7 @@ def build_ipv4_datagram(interface: str, target: str) -> bytes:
         dest,
     )
 
-    struct.pack_into("!H", buf, 10, inet_checksum(bytes(buf)))  # type: ignore
+    struct.pack_into("!H", buf, 10, inet_checksum(bytes(buf)))
 
     return bytes(buf)
 
@@ -129,7 +131,7 @@ def build_tcp_segment(interface: str, target: str, port: int) -> bytes:
     """
     ip_src = get_iface_ip(interface)
 
-    seq_no = random.randint(0, 2 ** 32 - 1)
+    seq_no = random.randint(0, 2**32 - 1)
     size = struct.calcsize("!HHIIBBHHH")
     assert size == 20
 
@@ -137,7 +139,7 @@ def build_tcp_segment(interface: str, target: str, port: int) -> bytes:
 
     struct.pack_into(
         "!HHIIHHHH",
-        buf,  # type: ignore
+        buf,
         0,
         TCP_SRC,
         port,
@@ -149,11 +151,12 @@ def build_tcp_segment(interface: str, target: str, port: int) -> bytes:
         TCP_URG_PTR,
     )
 
-    tcp_pseudo_header = build_tcp_pseudo_hdr(ip_src, target, len(buf)) 
+    tcp_pseudo_header = build_tcp_pseudo_hdr(ip_src, target, len(buf))
 
-    struct.pack_into("!H", buf, 16, inet_checksum(tcp_pseudo_header + bytes(buf)))  # type: ignore
+    struct.pack_into("!H", buf, 16, inet_checksum(tcp_pseudo_header + bytes(buf)))
 
     return bytes(buf)
+
 
 @functools.cache
 def build_tcp_pseudo_hdr(ip_src: str, ip_dest: str, length: int) -> bytes:
@@ -172,10 +175,12 @@ def tcp_assemble_halfword() -> int:
     """
     This is the dumbest function name I could think of right now.
     """
-    return (TCP_DATA_OFFSET << 12) \
-           | (TCP_RESERVED << 9) \
-           | (TCP_NS << 8) \
-           | build_tcp_flags()
+    return (
+        (TCP_DATA_OFFSET << 12)
+        | (TCP_RESERVED << 9)
+        | (TCP_NS << 8)
+        | build_tcp_flags()
+    )
 
 
 @functools.cache
@@ -185,8 +190,14 @@ def build_tcp_flags() -> int:
     """
     flags = 0
     for flag in (
-        TCP_CWR, TCP_ECE, TCP_URG, TCP_ACK,
-        TCP_PSH, TCP_RST, TCP_SYN, TCP_FIN
+        TCP_CWR,
+        TCP_ECE,
+        TCP_URG,
+        TCP_ACK,
+        TCP_PSH,
+        TCP_RST,
+        TCP_SYN,
+        TCP_FIN,
     ):
         flags <<= 1
         flags |= flag
@@ -199,9 +210,8 @@ def unpack(data: bytes) -> tuple[int, int]:
     the source port and flags of the TCP segment contained in it.
     """
     buf = ctypes.create_string_buffer(
-        data[IP_HDR_LEN : IP_HDR_LEN + TCP_HDR_LEN],
-        TCP_HDR_LEN
+        data[IP_HDR_LEN : IP_HDR_LEN + TCP_HDR_LEN], TCP_HDR_LEN
     )
-    unpacked = struct.unpack("!HHIIBBHHH", buf)  # type: ignore
+    unpacked = struct.unpack("!HHIIBBHHH", buf)
     src, flags = unpacked[0], unpacked[5]
     return src, flags
