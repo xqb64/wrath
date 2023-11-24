@@ -1,0 +1,25 @@
+#!/bin/sh
+
+# Run mypy
+poetry run mypy -p wrath
+if [ $? -ne 0 ]; then
+  echo "Error: Typechecking with mypy failed."
+  exit 1
+fi
+
+# Run ruff lint
+poetry run ruff wrath
+if [ $? -ne 0 ]; then
+  echo "Error: Linting with ruff failed."
+  exit 1
+fi
+
+# Run ruff format
+poetry run ruff format wrath
+if [ $? -ne 0 ]; then
+  echo "Error: Linting with ruff failed."
+  exit 1
+fi
+
+echo "All checks passed. Proceeding with the commit."
+exit 0
