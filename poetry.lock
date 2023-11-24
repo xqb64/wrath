@@ -483,7 +483,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-ena
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.12"
-content-hash = "08264bacbbaf500de79ae633a0502f68acab09c4fba0d643a155fabd0994add4"
+content-hash = "917871d4bffcc085388e2ecc19b45ae2e9a0955822b2d985ccd84b4d8a4aa8a3"
 
 [metadata.files]
 async-generator = []

@@ -15,8 +15,11 @@ from wrath.net import build_tcp_segment
 from wrath.net import create_send_sock
 from wrath.net import create_recv_sock
 from wrath.net import unpack
-from wrath.net import Flags
+from wrath.net import TcpFlag
 from wrath.net import TCP_SRC
+
+SYNACK = TcpFlag.SYN | TcpFlag.ACK
+RSTACK = TcpFlag.RST | TcpFlag.ACK
 
 if t.TYPE_CHECKING:
     from wrath.cli import Port, Range
@@ -95,10 +98,10 @@ async def receiver(
                 continue
 
             match flags:
-                case Flags.SYNACK:
+                case f if f == SYNACK:
                     print(f"{src}: open")
                     status[src]["status"] = PortStatus.OPEN
-                case Flags.RSTACK:
+                case f if f == RSTACK:
                     status[src]["status"] = PortStatus.CLOSED
                 case _:
                     pass

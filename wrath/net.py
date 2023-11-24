@@ -1,7 +1,9 @@
+import attrs
 import ctypes
 import functools
 import random
 import struct
+import enum
 from fcntl import ioctl
 
 from trio import socket
@@ -19,21 +21,6 @@ IP_PROTOCOL = 6  # TCP
 IP_CHECKSUM = 0
 
 TCP_SRC = 6969  # source port
-TCP_ACK_NO = 0
-TCP_DATA_OFFSET = 5
-TCP_RESERVED = 0
-TCP_NS = 0
-TCP_CWR = 0
-TCP_ECE = 0
-TCP_URG = 0
-TCP_ACK = 0
-TCP_PSH = 0
-TCP_RST = 0
-TCP_SYN = 1
-TCP_FIN = 0
-TCP_WINDOW = 0x7110
-TCP_CHECKSUM = 0
-TCP_URG_PTR = 0
 
 SIOCGIFADDR = 0x8915
 
@@ -42,9 +29,233 @@ IP_HDR_LEN = 20
 TCP_HDR_LEN = 20
 
 
-class Flags:
-    SYNACK = 18
-    RSTACK = 20
+class TcpFlag(enum.Enum):
+    CWR = 0b10000000
+    ECE = 0b01000000
+    URG = 0b00100000
+    ACK = 0b00010000
+    PSH = 0b00001000
+    RST = 0b00000100
+    SYN = 0b00000010
+    FIN = 0b00000001
+
+    def __or__(self, other: "TcpFlag") -> int:
+        if not isinstance(other, TcpFlag):
+            return NotImplemented
+
+        return self.value | other.value
+
+
+class NextLevelProtocol(enum.Enum):
+    TCP = 6
+
+
+@attrs.define
+class TcpPacket:
+    src: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
+        ],
+        default=0,
+    )
+    dst: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
+        ],
+        default=0,
+    )
+    seq: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 32),
+        ],
+        default=0,
+    )
+    ack: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 32),
+        ],
+        default=0,
+    )
+    data_offset: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 4),
+        ],
+        default=5,
+    )
+    reserved: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 4),
+        ],
+        default=0,
+    )
+    flags: TcpFlag = attrs.field(
+        validator=[attrs.validators.instance_of(TcpFlag)], default=TcpFlag.SYN
+    )
+    window: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
+        ],
+        default=0,
+    )
+    checksum: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
+        ],
+        default=0,
+    )
+    urgent_ptr: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
+        ],
+        default=0,
+    )
+    buffer: ctypes.Array[ctypes.c_char] = attrs.field(
+        validator=[attrs.validators.instance_of(ctypes.c_char * TCP_HDR_LEN)],
+        default=ctypes.create_string_buffer(TCP_HDR_LEN),
+    )
+
+    def build(self) -> ctypes.Array[ctypes.c_char]:
+        struct.pack_into(
+            "!HHIIBBHHH",
+            self.buffer,
+            0,
+            self.src,
+            self.dst,
+            self.seq,
+            self.ack,
+            ((self.data_offset << 4) | self.reserved),
+            self.flags.value,
+            self.window,
+            self.checksum,
+            self.urgent_ptr,
+        )
+        return self.buffer
+
+    def set_checksum(self, pseudoheader: bytes) -> None:
+        struct.pack_into(
+            "!H", self.buffer, 16, inet_checksum(pseudoheader + bytes(self.buffer))
+        )
+
+
+@attrs.define
+class Ipv4Packet:
+    version: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 4),
+        ],
+        default=4,
+    )
+    header_length: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 4),
+        ],
+        default=5,
+    )
+    dscp: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 6),
+        ],
+        default=0,
+    )
+    ecn: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 2),
+        ],
+        default=0,
+    )
+    total_length: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
+        ],
+        default=IP_HDR_LEN + TCP_HDR_LEN,
+    )
+    identification: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
+        ],
+        default=0,
+    )
+    flags: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 3),
+        ],
+        default=0,
+    )
+    fragment_offset: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 13),
+        ],
+        default=0,
+    )
+    ttl: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 8),
+        ],
+        default=255,
+    )
+    next_level_protocol: NextLevelProtocol = attrs.field(
+        validator=[attrs.validators.instance_of(NextLevelProtocol)],
+        default=NextLevelProtocol.TCP,
+    )
+    checksum: int = attrs.field(
+        validator=[
+            attrs.validators.instance_of(int),
+            lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
+        ],
+        default=0,
+    )
+    src: str = attrs.field(validator=[attrs.validators.instance_of(str)], default="")
+    dst: str = attrs.field(validator=[attrs.validators.instance_of(str)], default="")
+    buffer: ctypes.Array[ctypes.c_char] = attrs.field(
+        validator=[
+            attrs.validators.instance_of(ctypes.c_char * (IP_HDR_LEN + TCP_HDR_LEN))
+        ],
+        default=ctypes.create_string_buffer(IP_HDR_LEN + TCP_HDR_LEN),
+    )
+
+    def build(self) -> ctypes.Array[ctypes.c_char]:
+        struct.pack_into(
+            "!BBHHHBBH4s4s",
+            self.buffer,
+            0,
+            ((self.version << 4) | self.header_length),
+            self.dscp | self.ecn,
+            self.total_length,
+            self.identification,
+            ((self.flags << 13) | self.fragment_offset),
+            self.ttl,
+            self.next_level_protocol.value,
+            self.checksum,
+            socket.inet_aton(self.src),
+            socket.inet_aton(self.dst),
+        )
+        return self.buffer
+
+    def set_checksum(self, checksum: int) -> None:
+        struct.pack_into("!H", self.buffer, 10, inet_checksum(bytes(self.buffer)))
+
+
+def is_n_bits(attribute: attrs.Attribute[int], value: int, n: int) -> None:
+    if value.bit_length() > n:
+        raise ValueError(f"'{attribute.name}' has to be a {n}-bit number")
 
 
 @functools.cache
@@ -75,7 +286,7 @@ def create_send_sock() -> socket.SocketType:
 
 def create_recv_sock() -> socket.SocketType:
     """
-    Creates a raw AF_PACKET receiving socket and attaches an eBPF filter to it.
+    Creates a raw AF_INET receiving socket that speaks TCP.
     """
     recv_sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
     return recv_sock
@@ -96,33 +307,14 @@ def build_ipv4_datagram(interface: str, target: str) -> bytes:
     Builds an IPv4 datagram destined to a particular address.
     """
     ip_src = get_iface_ip(interface)
-    src = socket.inet_aton(ip_src)
-    dest = socket.inet_aton(target)
 
-    size = struct.calcsize("!BBHHHBBH4s4s")
-    assert size == 20
+    ipv4_packet = Ipv4Packet(src=ip_src, dst=target)
 
-    buf = ctypes.create_string_buffer(size)
+    buffer = ipv4_packet.build()
 
-    struct.pack_into(
-        "!BBHHHBBH4s4s",
-        buf,
-        0,
-        (IP_VERSION << 4) | IP_IHL,
-        IP_DSCP | IP_ECN,
-        IP_TOTAL_LEN,
-        IP_ID,
-        (IP_FLAGS << 13) | IP_FRAGMENT_OFFSET,
-        IP_TTL,
-        IP_PROTOCOL,
-        IP_CHECKSUM,
-        src,
-        dest,
-    )
+    ipv4_packet.set_checksum(inet_checksum(bytes(buffer)))
 
-    struct.pack_into("!H", buf, 10, inet_checksum(bytes(buf)))
-
-    return bytes(buf)
+    return bytes(ipv4_packet.buffer)
 
 
 def build_tcp_segment(interface: str, target: str, port: int) -> bytes:
@@ -131,31 +323,20 @@ def build_tcp_segment(interface: str, target: str, port: int) -> bytes:
     """
     ip_src = get_iface_ip(interface)
 
-    seq_no = random.randint(0, 2**32 - 1)
-    size = struct.calcsize("!HHIIBBHHH")
-    assert size == 20
-
-    buf = ctypes.create_string_buffer(size)
-
-    struct.pack_into(
-        "!HHIIHHHH",
-        buf,
-        0,
-        TCP_SRC,
-        port,
-        seq_no,
-        TCP_ACK_NO,
-        tcp_assemble_halfword(),
-        TCP_WINDOW,
-        TCP_CHECKSUM,
-        TCP_URG_PTR,
+    tcp_packet = TcpPacket(
+        src=TCP_SRC,
+        dst=port,
+        seq=random.randint(0, 2**32 - 1),
+        flags=TcpFlag.SYN,
+        window=0x7110,
     )
 
-    tcp_pseudo_header = build_tcp_pseudo_hdr(ip_src, target, len(buf))
+    buffer = tcp_packet.build()
 
-    struct.pack_into("!H", buf, 16, inet_checksum(tcp_pseudo_header + bytes(buf)))
+    tcp_pseudo_header = build_tcp_pseudo_hdr(ip_src, target, len(buffer))
+    tcp_packet.set_checksum(tcp_pseudo_header)
 
-    return bytes(buf)
+    return bytes(tcp_packet.buffer)
 
 
 @functools.cache
@@ -166,42 +347,8 @@ def build_tcp_pseudo_hdr(ip_src: str, ip_dest: str, length: int) -> bytes:
         socket.inet_aton(ip_dest),
         IP_PROTOCOL,
         length,
-        TCP_CHECKSUM,
+        0,
     )
-
-
-@functools.cache
-def tcp_assemble_halfword() -> int:
-    """
-    This is the dumbest function name I could think of right now.
-    """
-    return (
-        (TCP_DATA_OFFSET << 12)
-        | (TCP_RESERVED << 9)
-        | (TCP_NS << 8)
-        | build_tcp_flags()
-    )
-
-
-@functools.cache
-def build_tcp_flags() -> int:
-    """
-    Assembles TCP flags.
-    """
-    flags = 0
-    for flag in (
-        TCP_CWR,
-        TCP_ECE,
-        TCP_URG,
-        TCP_ACK,
-        TCP_PSH,
-        TCP_RST,
-        TCP_SYN,
-        TCP_FIN,
-    ):
-        flags <<= 1
-        flags |= flag
-    return flags
 
 
 def unpack(data: bytes) -> tuple[int, int]:
