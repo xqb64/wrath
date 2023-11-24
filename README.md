@@ -38,6 +38,39 @@ sys	0m0,001s
 
 **A**: Yes, the pun in the name was intended.
 
+## Installing
+
+You'll need `poetry` and `pyenv`.
+
+For poetry, on Ubuntu, it's available via:
+
+```
+sudo apt install python3-poetry
+```
+
+For [pyenv](https://github.com/pyenv/pyenv), check its installation instructions and install Python 3.12.0.
+
+After you have poetry and pyenv:
+
+```
+git clone https://github.com/xqb64/wrath
+cd wrath
+pyenv local 3.12.0
+poetry env use $(which python)
+poetry install
+export PYEXE=$(poetry env info -p)/bin/python
+```
+
+Now you can run the program, e.g.:
+
+```
+sudo $PYEXE -m wrath 192.168.1.1 -i enp5s0 -r 0-65535 --spawn-delay 0.001 --batch-delay 1 --batch-size 512
+```
+
+## Contributing
+
+Contributions are very welcome, in particular, suggestions (and patches) as for how to make the whole system faster. Make sure you copy/paste the pre-commit hook into `.git/hooks`.
+
 ## Status
 
-Usable, but still work in progress.
+Usable, but still needs a polish.

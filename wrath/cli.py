@@ -97,4 +97,14 @@ def cli(
     batch_size: int,
     max_retries: int,
 ) -> None:
-    trio.run(main, target, interface, ports, ranges, spawn_delay, batch_delay, batch_size, max_retries)
+    trio.run(
+        main,
+        target,
+        interface,
+        ports,
+        ranges,
+        spawn_delay,
+        batch_delay,
+        batch_size,
+        max_retries,
+    )
