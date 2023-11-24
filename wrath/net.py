@@ -8,17 +8,6 @@ from fcntl import ioctl
 
 from trio import socket
 
-IP_VERSION = 4
-IP_IHL = 5
-IP_DSCP = 0
-IP_ECN = 0
-IP_TOTAL_LEN = 40
-IP_ID = 0x1337
-IP_FLAGS = 0x2  # DF
-IP_FRAGMENT_OFFSET = 0
-IP_TTL = 255
-IP_PROTOCOL = 6  # TCP
-IP_CHECKSUM = 0
 
 TCP_SRC = 6969  # source port
 
@@ -345,7 +334,7 @@ def build_tcp_pseudo_hdr(ip_src: str, ip_dest: str, length: int) -> bytes:
         "!4s4sHHH",
         socket.inet_aton(ip_src),
         socket.inet_aton(ip_dest),
-        IP_PROTOCOL,
+        NextLevelProtocol.TCP,
         length,
         0,
     )
