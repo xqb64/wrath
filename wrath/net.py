@@ -1,4 +1,3 @@
-import attrs
 import ctypes
 import functools
 import random
@@ -6,6 +5,8 @@ import struct
 import enum
 from fcntl import ioctl
 
+from attrs import define, field, Attribute
+from attrs.validators import instance_of
 from trio import socket
 
 
@@ -29,9 +30,6 @@ class TcpFlag(enum.Enum):
     FIN = 0b00000001
 
     def __or__(self, other: "TcpFlag") -> int:
-        if not isinstance(other, TcpFlag):
-            return NotImplemented
-
         return self.value | other.value
 
 
@@ -39,76 +37,74 @@ class NextLevelProtocol(enum.Enum):
     TCP = 6
 
 
-@attrs.define
+@define
 class TcpPacket:
-    src: int = attrs.field(
+    src: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
         ],
         default=0,
     )
-    dst: int = attrs.field(
+    dst: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
         ],
         default=0,
     )
-    seq: int = attrs.field(
+    seq: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 32),
         ],
         default=0,
     )
-    ack: int = attrs.field(
+    ack: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 32),
         ],
         default=0,
     )
-    data_offset: int = attrs.field(
+    data_offset: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 4),
         ],
         default=5,
     )
-    reserved: int = attrs.field(
+    reserved: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 4),
         ],
         default=0,
     )
-    flags: TcpFlag = attrs.field(
-        validator=[attrs.validators.instance_of(TcpFlag)], default=TcpFlag.SYN
-    )
-    window: int = attrs.field(
+    flags: TcpFlag = field(validator=[instance_of(TcpFlag)], default=TcpFlag.SYN)
+    window: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
         ],
         default=0,
     )
-    checksum: int = attrs.field(
+    checksum: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
         ],
         default=0,
     )
-    urgent_ptr: int = attrs.field(
+    urgent_ptr: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
         ],
         default=0,
     )
-    buffer: ctypes.Array[ctypes.c_char] = attrs.field(
-        validator=[attrs.validators.instance_of(ctypes.c_char * TCP_HDR_LEN)],
+    buffer: ctypes.Array[ctypes.c_char] = field(
+        validator=[instance_of(ctypes.c_char * TCP_HDR_LEN)],
         default=ctypes.create_string_buffer(TCP_HDR_LEN),
     )
 
@@ -135,88 +131,86 @@ class TcpPacket:
         )
 
 
-@attrs.define
+@define
 class Ipv4Packet:
-    version: int = attrs.field(
+    version: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 4),
         ],
         default=4,
     )
-    header_length: int = attrs.field(
+    header_length: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 4),
         ],
         default=5,
     )
-    dscp: int = attrs.field(
+    dscp: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 6),
         ],
         default=0,
     )
-    ecn: int = attrs.field(
+    ecn: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 2),
         ],
         default=0,
     )
-    total_length: int = attrs.field(
+    total_length: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
         ],
         default=IP_HDR_LEN + TCP_HDR_LEN,
     )
-    identification: int = attrs.field(
+    identification: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
         ],
         default=0,
     )
-    flags: int = attrs.field(
+    flags: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 3),
         ],
         default=0,
     )
-    fragment_offset: int = attrs.field(
+    fragment_offset: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 13),
         ],
         default=0,
     )
-    ttl: int = attrs.field(
+    ttl: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 8),
         ],
         default=255,
     )
-    next_level_protocol: NextLevelProtocol = attrs.field(
-        validator=[attrs.validators.instance_of(NextLevelProtocol)],
+    next_level_protocol: NextLevelProtocol = field(
+        validator=[instance_of(NextLevelProtocol)],
         default=NextLevelProtocol.TCP,
     )
-    checksum: int = attrs.field(
+    checksum: int = field(
         validator=[
-            attrs.validators.instance_of(int),
+            instance_of(int),
             lambda _instance, attribute, value: is_n_bits(attribute, value, 16),
         ],
         default=0,
     )
-    src: str = attrs.field(validator=[attrs.validators.instance_of(str)], default="")
-    dst: str = attrs.field(validator=[attrs.validators.instance_of(str)], default="")
-    buffer: ctypes.Array[ctypes.c_char] = attrs.field(
-        validator=[
-            attrs.validators.instance_of(ctypes.c_char * (IP_HDR_LEN + TCP_HDR_LEN))
-        ],
+    src: str = field(validator=[instance_of(str)], default="")
+    dst: str = field(validator=[instance_of(str)], default="")
+    buffer: ctypes.Array[ctypes.c_char] = field(
+        validator=[instance_of(ctypes.c_char * (IP_HDR_LEN + TCP_HDR_LEN))],
         default=ctypes.create_string_buffer(IP_HDR_LEN + TCP_HDR_LEN),
     )
 
@@ -242,7 +236,7 @@ class Ipv4Packet:
         struct.pack_into("!H", self.buffer, 10, inet_checksum(bytes(self.buffer)))
 
 
-def is_n_bits(attribute: attrs.Attribute[int], value: int, n: int) -> None:
+def is_n_bits(attribute: Attribute[int], value: int, n: int) -> None:
     if value.bit_length() > n:
         raise ValueError(f"'{attribute.name}' has to be a {n}-bit number")
 
