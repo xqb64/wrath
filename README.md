@@ -1,4 +1,6 @@
-# wrath
+![wrath](wrath.png)
+
+<h1 align="center">wrath</h1>
 
 A highly performant networking tool optimized for scanning sizable port ranges as quickly as possible.
 
