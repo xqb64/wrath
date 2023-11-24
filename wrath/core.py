@@ -10,16 +10,19 @@ from tractor import open_actor_cluster
 from tractor.trionics import gather_contexts
 from async_generator import aclosing
 
-from wrath.net import build_ipv4_datagram
+from wrath.net import (
+    IP_HDR_LEN,
+    RSTACK,
+    SYNACK,
+    TCP_HDR_LEN,
+    TcpPacket,
+    build_ipv4_datagram,
+)
 from wrath.net import build_tcp_segment
 from wrath.net import create_send_sock
 from wrath.net import create_recv_sock
-from wrath.net import unpack
-from wrath.net import TcpFlag
 from wrath.net import TCP_SRC
 
-SYNACK = TcpFlag.SYN | TcpFlag.ACK
-RSTACK = TcpFlag.RST | TcpFlag.ACK
 
 if t.TYPE_CHECKING:
     from wrath.cli import Port, Range
@@ -92,7 +95,12 @@ async def receiver(
             while not recv_sock.is_readable():
                 await trio.sleep(0.01)
         else:
-            src, flags = unpack(response)
+            tcp_packet = TcpPacket.from_bytes(
+                response[IP_HDR_LEN : IP_HDR_LEN + TCP_HDR_LEN]
+            )
+
+            src = tcp_packet.src
+            flags = tcp_packet.flags
 
             if status[src]["status"] != PortStatus.NOT_INSPECTED:
                 continue

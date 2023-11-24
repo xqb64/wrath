@@ -3,9 +3,10 @@ import functools
 import random
 import struct
 import enum
+import typing as t
 from fcntl import ioctl
 
-from attrs import define, field, Attribute
+from attrs import define, field
 from attrs.validators import instance_of
 from trio import socket
 
@@ -14,12 +15,11 @@ TCP_SRC = 6969  # source port
 
 SIOCGIFADDR = 0x8915
 
-ETH_HDR_LEN = 14
 IP_HDR_LEN = 20
 TCP_HDR_LEN = 20
 
 
-class TcpFlag(enum.Enum):
+class TcpFlag(enum.IntEnum):
     CWR = 0b10000000
     ECE = 0b01000000
     URG = 0b00100000
@@ -29,8 +29,9 @@ class TcpFlag(enum.Enum):
     SYN = 0b00000010
     FIN = 0b00000001
 
-    def __or__(self, other: "TcpFlag") -> int:
-        return self.value | other.value
+
+SYNACK = TcpFlag.SYN | TcpFlag.ACK
+RSTACK = TcpFlag.RST | TcpFlag.ACK
 
 
 class NextLevelProtocol(enum.Enum):
@@ -81,7 +82,7 @@ class TcpPacket:
         ],
         default=0,
     )
-    flags: TcpFlag = field(validator=[instance_of(TcpFlag)], default=TcpFlag.SYN)
+    flags: int = field(validator=[instance_of(int)], default=0)
     window: int = field(
         validator=[
             instance_of(int),
@@ -118,7 +119,7 @@ class TcpPacket:
             self.seq,
             self.ack,
             ((self.data_offset << 4) | self.reserved),
-            self.flags.value,
+            self.flags,
             self.window,
             self.checksum,
             self.urgent_ptr,
@@ -128,6 +129,35 @@ class TcpPacket:
     def set_checksum(self, pseudoheader: bytes) -> None:
         struct.pack_into(
             "!H", self.buffer, 16, inet_checksum(pseudoheader + bytes(self.buffer))
+        )
+
+    @classmethod
+    def from_bytes(cls, raw_bytes: bytes) -> "TcpPacket":
+        buffer = ctypes.create_string_buffer(raw_bytes, TCP_HDR_LEN)
+        (
+            src,
+            dst,
+            seq,
+            ack,
+            data_offset_and_reserved,
+            flags,
+            window,
+            checksum,
+            urgent_ptr,
+        ) = struct.unpack("!HHIIBBHHH", buffer)
+        data_offset = (data_offset_and_reserved >> 4) & 0xF
+        reserved = data_offset_and_reserved & 0xF
+        return TcpPacket(
+            src,
+            dst,
+            seq,
+            ack,
+            data_offset,
+            reserved,
+            flags,
+            window,
+            checksum,
+            urgent_ptr,
         )
 
 
@@ -210,8 +240,8 @@ class Ipv4Packet:
     src: str = field(validator=[instance_of(str)], default="")
     dst: str = field(validator=[instance_of(str)], default="")
     buffer: ctypes.Array[ctypes.c_char] = field(
-        validator=[instance_of(ctypes.c_char * (IP_HDR_LEN + TCP_HDR_LEN))],
-        default=ctypes.create_string_buffer(IP_HDR_LEN + TCP_HDR_LEN),
+        validator=[instance_of(ctypes.c_char * (IP_HDR_LEN))],
+        default=ctypes.create_string_buffer(IP_HDR_LEN),
     )
 
     def build(self) -> ctypes.Array[ctypes.c_char]:
@@ -220,7 +250,7 @@ class Ipv4Packet:
             self.buffer,
             0,
             ((self.version << 4) | self.header_length),
-            self.dscp | self.ecn,
+            ((self.dscp << 6) | self.ecn),
             self.total_length,
             self.identification,
             ((self.flags << 13) | self.fragment_offset),
@@ -236,7 +266,7 @@ class Ipv4Packet:
         struct.pack_into("!H", self.buffer, 10, inet_checksum(bytes(self.buffer)))
 
 
-def is_n_bits(attribute: Attribute[int], value: int, n: int) -> None:
+def is_n_bits(attribute: t.Any, value: int, n: int) -> None:
     if value.bit_length() > n:
         raise ValueError(f"'{attribute.name}' has to be a {n}-bit number")
 
@@ -328,20 +358,7 @@ def build_tcp_pseudo_hdr(ip_src: str, ip_dest: str, length: int) -> bytes:
         "!4s4sHHH",
         socket.inet_aton(ip_src),
         socket.inet_aton(ip_dest),
-        NextLevelProtocol.TCP,
+        NextLevelProtocol.TCP.value,
         length,
         0,
     )
-
-
-def unpack(data: bytes) -> tuple[int, int]:
-    """
-    Extracts the IPv4 datagram from a raw Ethernet frame and returns
-    the source port and flags of the TCP segment contained in it.
-    """
-    buf = ctypes.create_string_buffer(
-        data[IP_HDR_LEN : IP_HDR_LEN + TCP_HDR_LEN], TCP_HDR_LEN
-    )
-    unpacked = struct.unpack("!HHIIBBHHH", buf)
-    src, flags = unpacked[0], unpacked[5]
-    return src, flags
