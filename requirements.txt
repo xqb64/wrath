@@ -1,0 +1,6 @@
+trio >= 0.23.1
+click >= 8.0.3
+click-option-group >= 0.5.3
+tractor @ git+https://github.com/goodboy/tractor
+more-itertools >= 8.10.0
+attrs >= 23.1.0

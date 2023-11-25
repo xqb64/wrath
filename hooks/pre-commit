@@ -1,21 +1,21 @@
 #!/bin/sh
 
 # Run mypy
-poetry run mypy -p wrath
+mypy -p wrath
 if [ $? -ne 0 ]; then
   echo "Error: Typechecking with mypy failed."
   exit 1
 fi
 
 # Run ruff lint
-poetry run ruff wrath
+ruff wrath
 if [ $? -ne 0 ]; then
   echo "Error: Linting with ruff failed."
   exit 1
 fi
 
 # Run ruff format
-poetry run ruff format wrath
+ruff format wrath --check
 if [ $? -ne 0 ]; then
   echo "Error: Linting with ruff failed."
   exit 1

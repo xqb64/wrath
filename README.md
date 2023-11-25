@@ -42,24 +42,12 @@ sys	0m0,001s
 
 ## Installing
 
-You'll need `poetry` and `pyenv`.
-
-For poetry, on Ubuntu, it's available via:
-
-```
-sudo apt install python3-poetry
-```
-
-For [pyenv](https://github.com/pyenv/pyenv), check its installation instructions and install Python 3.12.0.
-
-After you have poetry and pyenv:
-
 ```
 git clone https://github.com/xqb64/wrath
 cd wrath
-pyenv local 3.12.0
-poetry env use $(which python)
-poetry install
+python3 -m venv env
+source env/bin/activate
+pip install .
 export PYEXE=$(poetry env info -p)/bin/python
 ```
 

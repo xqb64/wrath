@@ -1,47 +1,25 @@
-[tool.poetry]
+[project]
 name = "wrath"
 version = "0.1.0"
-description = "A screaming-fast TCP SYN reconnaissance tool"
-authors = ["xqb64 <x@nuked.one>"]
+description = "A TCP SYN reconnaissance tool"
+authors = [{name = "xqb64", email = "x@nuked.one"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = ["License :: OSI Approved :: MIT License"]
+dependencies = [
+    "trio >= 0.23.1",
+    "click >= 8.0.3",
+    "click-option-group >= 0.5.3",
+    "tractor @ git+https://github.com/goodboy/tractor",
+    "more-itertools >= 8.10.0",
+    "attrs >= 23.1.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-trio = "^0.23.1"
-click = "^8.0.3"
-click-option-group = "^0.5.3"
-tractor = { git = "https://github.com/goodboy/tractor", rev = "master" }
-more-itertools = "^8.10.0"
-attrs = "^23.1.0"
+[project.optional-dependencies]
+dev = [
+    "mypy >= 1.7.1",
+    "ruff >= 0.1.6",
+]
 
-[tool.poetry.dev-dependencies]
-pytest = "^5.2"
-black = "^21.9b0"
-mypy = { git = "https://github.com/python/mypy", rev = "master" }
-ruff = "^0.1.6"
-
-[tool.mypy]
-strict = true
-
-[[tool.mypy.overrides]]
-module = "click_option_group"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "tractor"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "tractor.trionics"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "wrath.cli"
-disallow_untyped_decorators = false
-
-[[tool.mypy.overrides]]
-module = "wrath.core"
-disallow_untyped_decorators = false
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.setuptools.packages.find]
+where = ["wrath"]
