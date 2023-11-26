@@ -3,6 +3,7 @@ import itertools
 import math
 import typing as t
 from multiprocessing import cpu_count
+
 import more_itertools
 import trio
 import tractor
@@ -11,18 +12,18 @@ from tractor.trionics import gather_contexts
 from async_generator import aclosing
 
 from wrath.net import (
+    build_ipv4_datagram,
+    build_tcp_segment,
+    dns_lookup,
+    create_send_sock,
+    create_recv_sock,
     IP_HDR_LEN,
     RSTACK,
     SYNACK,
     TCP_HDR_LEN,
+    TCP_SRC,
     TcpPacket,
-    build_ipv4_datagram,
-    dns_lookup,
 )
-from wrath.net import build_tcp_segment
-from wrath.net import create_send_sock
-from wrath.net import create_recv_sock
-from wrath.net import TCP_SRC
 
 
 if t.TYPE_CHECKING:
