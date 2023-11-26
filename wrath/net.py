@@ -362,3 +362,9 @@ def build_tcp_pseudo_hdr(ip_src: str, ip_dest: str, length: int) -> bytes:
         length,
         0,
     )
+
+
+async def dns_lookup(host: str) -> str:
+    info = await socket.getaddrinfo(host, None)
+    ip, *_ = info[0][-1]
+    return ip

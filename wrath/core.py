@@ -17,6 +17,7 @@ from wrath.net import (
     TCP_HDR_LEN,
     TcpPacket,
     build_ipv4_datagram,
+    dns_lookup,
 )
 from wrath.net import build_tcp_segment
 from wrath.net import create_send_sock
@@ -102,7 +103,11 @@ async def receiver(
             src = tcp_packet.src
             flags = tcp_packet.flags
 
-            if status[src]["status"] != PortStatus.NOT_INSPECTED:
+            try:
+                if status[src]["status"] != PortStatus.NOT_INSPECTED:
+                    continue
+            except KeyError:
+                # we did not ask for this port
                 continue
 
             match flags:
@@ -172,6 +177,7 @@ async def main(
     workers: int = cpu_count(),
 ) -> None:
     event = trio.Event()
+    target = await dns_lookup(target)
     async with (
         open_actor_cluster(
             modules=[__name__], start_method="mp_forkserver", hard_kill=True
