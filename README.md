@@ -48,7 +48,7 @@ cd wrath
 python3 -m venv env
 source env/bin/activate
 pip install .
-export PYEXE=$(poetry env info -p)/bin/python
+export PYEXE=$(which python)
 ```
 
 Now you can run the program, e.g.:
