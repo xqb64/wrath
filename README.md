@@ -100,6 +100,11 @@ Options:
 
 Contributions are very welcome, in particular, suggestions (and patches) as for how to make the whole system faster. Make sure you copy/paste the pre-commit hook into `.git/hooks`.
 
+## References
+
+- https://datatracker.ietf.org/doc/html/rfc791
+- https://datatracker.ietf.org/doc/html/rfc9293
+
 ## Licensing
 
 Licensed under the [MIT License](https://opensource.org/licenses/MIT). For details, see [LICENSE](https://github.com/xqb64/wrath/blob/master/LICENSE).
