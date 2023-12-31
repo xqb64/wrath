@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/xqb64/wrath/master/wrath.png" alt="wrath"/>
-</p>
-
 <h1 align="center">wrath</h1>
 
 This project, a TCP SYN reconnaissance tool, marks my intial venture into the realm of computer network programming. The idea was not to create a battle-tested `nmap` successor, but to have fun exploring computer networks more closely and see how far I could push Python performance-wise. I learned a ton about hands-on networking and putting it together brought me a lot of pleasure, so I'd say the target has been met. ;-)
