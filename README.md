@@ -10,7 +10,7 @@ The technique used, known as "stealth" (or "half-open") scanning, involves sendi
 
 - If the target responds with `SYNACK`, it means that the port is open.
 - If the target responds with `RSTACK`, the port is considered closed.
-- If the target machine does not respond at all, `tsunami` will retry at most `--max-retries` times before reporting the port as filtered.
+- If the target machine does not respond at all, `wrath` will retry at most `--max-retries` times before reporting the port as filtered.
 
 ## Let's talk numbers
 
